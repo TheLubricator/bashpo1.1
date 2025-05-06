@@ -428,8 +428,8 @@ def RemoveFromCart():
         db=sqlite3.connect('bashpos_--definitely--_secured_database.db')
         c=db.cursor()
         delete_from_cart_query(username,game_name)
-        c.execute("SELECT * FROM CART_SYSTEM WHERE username=?",(username,))
-        is_empty=c.fetchall()
+        
+        is_empty=cart_empty_check_query(username)
         print(is_empty)
         if len(is_empty)>0:
             return jsonify({"success": True,"empty_check":False, "message": "Game removed from cart"})
@@ -449,14 +449,12 @@ def RemoveFromWishlist():
 @app.route('/PayUsingWallet',methods=['GET','POST'])
 def Pay_Using_Wallet():
         buyer_username=session['username']
-        db=sqlite3.connect('bashpos_--definitely--_secured_database.db')
-        c=db.cursor()
         game_list=pay_with_card_query(buyer_username)
         total_price=0
         for i in game_list:
             total_price+=i[1]
-        c.execute("SELECT balance FROM WALLET_BALANCE WHERE username = ?",(session['username'],))
-        balance = round(c.fetchone()[0],2)
+        
+        balance = pay_with_wallet_balance_check(buyer_username)
         if balance<total_price:
              return jsonify({"success": False, "message": "Insufficient funds"})
         else:
@@ -589,14 +587,11 @@ def ReviewFilter():
 def ReturnReviewFilter():
    
     sqlcommand=review_filter_global.value
-    with sqlite3.connect('bashpos_--definitely--_secured_database.db') as db:
-            c = db.cursor()
-            c.execute(sqlcommand)
-            print('sqlll',sqlcommand)
-            reviews_sorted=c.fetchall()
+   
+    reviews_sorted=ReturnReviewFilter_query(sqlcommand)
             
                     
-            return render_template('review_list_jinja.html',reviews_sorted=reviews_sorted)
+    return render_template('review_list_jinja.html',reviews_sorted=reviews_sorted)
 
 
 @app.route('/ViewGamePage/<game_name>',methods=['GET','POST'])
@@ -632,7 +627,8 @@ def Post_Review():
             post_review_query(buyer_username,game_name,rating,review)
             return jsonify({'success': True, 'message':'Review for '+game_name+' posted successfully'})
 
-@app.route('/UpdateCreditCard', methods=['POST','GET'])
+#killedd route not in use
+@app.route('/UpdateCreditCard-depreciated', methods=['POST','GET'])
 def Update_card():
     if request.method=='POST':
         buyer_username = session['username']
@@ -640,7 +636,7 @@ def Update_card():
             c = db.cursor()
             req_json=request.json
             card_number=req_json.get('card_number')
-            c.execute("UPDATE USERS SET card_info=? where username=?", (card_number,buyer_username))
+           
             db.commit()
             return jsonify({'success': True  })
         
@@ -651,8 +647,7 @@ def Wallet2Credit():
         with sqlite3.connect('bashpos_--definitely--_secured_database.db') as db:
             c = db.cursor()
             amount = request.form.get('wallet')
-            # c.execute("SELECT * from USERS WHERE username=? and card_info=?"(buyer_username),)
-            # credit_card_avail=c.fetchall()
+           
             trx_id="TX"+str(random.randint(0,9))+str(random.randint(0,9))+str(random.randint(0,9))+str(random.randint(0,9))+str(random.randint(0,9))
         print(trx_id)
         post_body = {
@@ -828,14 +823,12 @@ def Refund_game():
 @login_required('buyer')
 def Send_Friend_Request():
      if request.method == 'POST':
-        db=sqlite3.connect("bashpos_--definitely--_secured_database.db")
-        c=db.cursor()
+       
         req_json = request.json
         friend_email=req_json.get('email').lower()
         print(friend_email)
         sender_username=session['username']
-        c.execute("SELECT username FROM USERS where email LIKE ? and user_type='buyer'",(friend_email,))
-        friend_username=c.fetchone()
+        friend_username=friend_req_friend_email_verification(friend_email)
         if  friend_username==None:
             return jsonify({"success": False, "message": "This email doesn't belong to a buyer or doesn't exist"})
         else:
@@ -844,17 +837,15 @@ def Send_Friend_Request():
              return jsonify({"success": False, "message": "You cannot send a friend request to yourself"})
         print(friend_username)
         #checking if a request is pending or accepted
-        c.execute("SELECT request_status FROM SENT_FRIEND_REQUEST WHERE username_from=? and username_to=? and request_status!='Rejected'",(sender_username,friend_username))
-        check_duplicate=c.fetchall()
-        c.execute("SELECT request_status FROM SENT_FRIEND_REQUEST WHERE username_from=? and username_to=? and request_status!='Rejected'",(friend_username,sender_username))
-        check_duplicate_2=c.fetchall()
+        check_duplicate=send_friend_req_duplicate_finder(sender_username,friend_username)
+        
+        check_duplicate_2=send_friend_req_duplicate_finder(friend_username,sender_username)
         if len(check_duplicate)!=0:
             return jsonify({"success": False, "message": "Cannot send friend request as currently a request is "+check_duplicate[0][0]})
         elif len(check_duplicate_2)!=0:
             return jsonify({"success": False, "message": "Cannot send friend request as currently a request is "+check_duplicate_2[0][0]})
         else:
-            c.execute("INSERT INTO SENT_FRIEND_REQUEST VALUES (?,?,?)",(sender_username,friend_username,'Pending'))
-            db.commit()
+            send_friend_req_query(sender_username,friend_username)
             return jsonify({"success": True, "message": "Friend Request sent succesfully"})
 
 
@@ -1167,4 +1158,4 @@ scheduler.start()
 
 
 if __name__=="__main__":
-    app.run(debug=True, port=1097)
+    app.run(host='0.0.0.0', port=1097)

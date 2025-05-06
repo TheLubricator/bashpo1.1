@@ -164,22 +164,7 @@ def buyer_dash_query():
                 wishlist_user[i] [2] = round(wishlist_user[i] [2]*1.1,2)
                 wishlist_user[i] [3] = round(wishlist_user[i] [3]*1.1,2)  
         return buyer_username,balance, featured_games, game_list, wishlist_value,wishlist_user,cart_value, cart_status
-def update_password_existing():
-        username = session['username']
-        db = sqlite3.connect('bashpos_--definitely--_secured_database.db')
-        c = db.cursor()
 
-        
-        c.execute("SELECT password FROM USERS WHERE username = ?", (username,))
-        stored_password = c.fetchone()
-        return stored_password
-def update_password_passed_check(newpassword,username):
-    db = sqlite3.connect('bashpos_--definitely--_secured_database.db')
-    c = db.cursor()
-    print('newpass: ',newpassword,username)
-    c.execute("UPDATE USERS SET password = ? WHERE username = ?", (newpassword, username))
-    db.commit()
-    db.close()
 def update_request_query(status,request_id):
     db = sqlite3.connect('bashpos_--definitely--_secured_database.db')
     c = db.cursor()
@@ -290,6 +275,37 @@ def view_friend_profile_query(friend_username):
         c.execute("SELECT game_name, username from OWNED_GAMES  where username=?",(friend_username,))
         friends_games=c.fetchall()
         return friend_username,balance,friend_data,friends_games
+    
+########################### FRIEND REQUESTS ###############################
+def friend_req_friend_email_verification(friend_email):
+    db=sqlite3.connect("bashpos_--definitely--_secured_database.db")
+    c=db.cursor()
+    c.execute("SELECT username FROM USERS where email LIKE ? and user_type='buyer'",(friend_email,))
+    friend_username=c.fetchone()
+    return friend_username
+
+
+def send_friend_req_duplicate_finder(sender_username,friend_username):
+    db=sqlite3.connect("bashpos_--definitely--_secured_database.db")
+    c=db.cursor()
+    c.execute("SELECT request_status FROM SENT_FRIEND_REQUEST WHERE username_from=? and username_to=? and request_status!='Rejected'",(sender_username,friend_username))
+    check_duplicate=c.fetchall()
+    return check_duplicate
+
+def send_friend_req_query(sender_username,friend_username):
+    db=sqlite3.connect("bashpos_--definitely--_secured_database.db")
+    c=db.cursor()
+
+
+    c.execute("INSERT INTO SENT_FRIEND_REQUEST VALUES (?,?,?)",(sender_username,friend_username,'Pending'))
+    db.commit()
+    
+
+
+
+
+
+
 
 def update_friend_req_query(friends_username,status):
     db = sqlite3.connect('bashpos_--definitely--_secured_database.db')
@@ -644,6 +660,17 @@ def review_filter_query(query_type,game_name):
         elif query_type=='all':
             return "SELECT username,review, rating FROM REVIEWS where game_name="+"'"+ game_name+"'"
 
+def ReturnReviewFilter_query(sqlcommand):
+    with sqlite3.connect('bashpos_--definitely--_secured_database.db') as db:
+            c = db.cursor()
+            c.execute(sqlcommand)
+            print('sqlll',sqlcommand)
+            reviews_sorted=c.fetchall()
+            return reviews_sorted
+
+
+
+
 def search_filter_returner_query(sqlcommand):
     with sqlite3.connect('bashpos_--definitely--_secured_database.db') as db:
             c = db.cursor()
@@ -754,6 +781,16 @@ def pay_with_card_query(buyer_username):
                 game_list[i] [1] = round(game_list[i] [1]*1.1,2)
         
         return game_list
+   
+
+
+def pay_with_wallet_balance_check(buyer_username):
+    with sqlite3.connect('bashpos_--definitely--_secured_database.db') as db:
+        c = db.cursor()
+        c.execute("SELECT balance FROM WALLET_BALANCE WHERE username = ?",(buyer_username,))
+        balance = round(c.fetchone()[0],2)
+        return balance
+     
 
 def pay_with_wallet_query(buyer_username,game_list):
     db=sqlite3.connect('bashpos_--definitely--_secured_database.db')
@@ -776,12 +813,23 @@ def pay_with_wallet_query(buyer_username,game_list):
                 c.execute("DELETE FROM CART_SYSTEM WHERE game_name=? and username=?",(game_name,buyer_username))
                 c.execute("DELETE FROM WISHLIST WHERE game_name=? and username=?",(game_name,buyer_username))
                 db.commit()
+    
 
 def remove_from_wishlist_query(username,game_name):
     with sqlite3.connect('bashpos_--definitely--_secured_database.db') as db:
             c = db.cursor() 
             c.execute("DELETE FROM WISHLIST WHERE game_name=? and username=?",(game_name,username))
             db.commit()
+
+def cart_empty_check_query(username):
+    with sqlite3.connect('bashpos_--definitely--_secured_database.db') as db:
+        c = db.cursor()
+        c.execute("SELECT * FROM CART_SYSTEM WHERE username=?",(username,))
+        is_empty=c.fetchall()
+        return is_empty 
+
+
+
          
 def delete_from_cart_query(username,game_name):
      with sqlite3.connect('bashpos_--definitely--_secured_database.db') as db:

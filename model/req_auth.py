@@ -228,6 +228,26 @@ def forget_password_update_pasword(email,new_password):
     db.commit()
     db.close()
 
+def update_password_existing():
+        username = session['username']
+        db = sqlite3.connect('bashpos_--definitely--_secured_database.db')
+        c = db.cursor()
+
+        
+        c.execute("SELECT password FROM USERS WHERE username = ?", (username,))
+        stored_password = c.fetchone()
+        return stored_password
+def update_password_passed_check(newpassword,username):
+    db = sqlite3.connect('bashpos_--definitely--_secured_database.db')
+    c = db.cursor()
+    print('newpass: ',newpassword,username)
+    c.execute("UPDATE USERS SET password = ? WHERE username = ?", (newpassword, username))
+    db.commit()
+    db.close()
+
+
+
+
 
 ################# SCHEDULER #######################
 def sale_reset_query(current_time):
